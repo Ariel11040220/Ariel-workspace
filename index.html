@@ -544,6 +544,113 @@
     font-size: 14px;
   }
   .event-item:last-child { border-bottom: none; }
+
+  .reimb-plain-input {
+    border: none;
+    background: transparent;
+    padding: 8px 0;
+    font-size: 14px;
+    width: 100%;
+    color: #2c2c2a;
+    font-family: inherit;
+  }
+  .reimb-plain-input:focus { outline: none; }
+  .reimb-cancel-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 14px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  .reimb-summary-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .reimb-summary-card {
+    text-align: center;
+    padding: 22px 16px;
+  }
+  .reimb-summary-icon { font-size: 24px; margin-bottom: 6px; }
+  .reimb-summary-label { font-size: 13px; color: var(--text-secondary); margin-bottom: 4px; }
+  .reimb-summary-value { font-size: 24px; font-weight: 600; }
+  .reimb-summary-card.received .reimb-summary-value { color: #1a7a3e; }
+  .reimb-summary-card.pending .reimb-summary-value { color: var(--accent-text); }
+  @media (max-width: 720px) {
+    .reimb-summary-row { grid-template-columns: 1fr; }
+  }
+
+  .reimb-tabs {
+    display: flex;
+    gap: 8px;
+    margin: 18px 0 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .reimb-tab {
+    background: none;
+    border: none;
+    padding: 8px 4px 10px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+  .reimb-tab.active {
+    color: var(--text);
+    font-weight: 500;
+    border-bottom-color: var(--accent);
+  }
+  .reimb-tab-count {
+    background: var(--field-bg);
+    color: var(--text-secondary);
+    font-size: 11px;
+    padding: 1px 7px;
+    border-radius: 10px;
+  }
+  .reimb-tab.active .reimb-tab-count {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .reimb-table-wrap { overflow-x: auto; }
+  .reimb-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    min-width: 640px;
+  }
+  .reimb-table th {
+    text-align: left;
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .reimb-table td {
+    padding: 10px 10px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .reimb-table tr:last-child td { border-bottom: none; }
+  .reimb-table .reimb-outstanding-cell { color: var(--danger); font-weight: 500; }
+  .reimb-table .reimb-checkbox { width: 17px; height: 17px; accent-color: var(--accent); cursor: pointer; }
+  .reimb-table-actions { display: flex; gap: 6px; }
+  .reimb-table-actions button {
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 6px;
+  }
+  .reimb-table-actions .del-btn { color: var(--danger); border-color: var(--danger); }
   .event-item .event-main { display: flex; flex-direction: column; gap: 2px; }
   .event-item .event-sub { font-size: 11px; color: var(--text-muted); }
 </style>
@@ -574,6 +681,7 @@
       <button class="nav-item" data-page="links">🌐 常用連結</button>
       <button class="nav-item" data-page="tasks">✨ 待辦事項</button>
       <button class="nav-item" data-page="calendar">📆 行事曆</button>
+      <button class="nav-item" data-page="reimbursement">💰 公司請款項目</button>
     </nav>
     <div class="sidebar-footer">
       <span id="user-email" class="user-email"></span>
@@ -724,6 +832,91 @@
       </div>
     </section>
 
+    <section class="page" id="page-reimbursement">
+      <div class="reimb-summary-row">
+        <div class="card reimb-summary-card">
+          <div class="reimb-summary-icon">💰</div>
+          <div class="reimb-summary-label">總額</div>
+          <div class="reimb-summary-value" id="reimb-total-sum">$0</div>
+        </div>
+        <div class="card reimb-summary-card received">
+          <div class="reimb-summary-icon">✅</div>
+          <div class="reimb-summary-label">已收款</div>
+          <div class="reimb-summary-value" id="reimb-received-sum">$0</div>
+        </div>
+        <div class="card reimb-summary-card pending">
+          <div class="reimb-summary-icon">⏳</div>
+          <div class="reimb-summary-label">待收款</div>
+          <div class="reimb-summary-value" id="reimb-outstanding-sum">$0</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>💰 公司請款項目</h2>
+        <form id="reimb-form">
+          <div class="add-row">
+            <div class="field-group">
+              <label class="field-label" for="reimb-payee">收款對象</label>
+              <input type="text" id="reimb-payee" class="auth-input" placeholder="例如:王先生">
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="reimb-date">發生日期</label>
+              <input type="date" id="reimb-date">
+            </div>
+          </div>
+          <div class="add-row">
+            <div class="field-group">
+              <label class="field-label" for="reimb-total">總額</label>
+              <input type="number" id="reimb-total" class="reimb-plain-input" min="0" step="1" placeholder="0">
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="reimb-outstanding">待收款</label>
+              <input type="number" id="reimb-outstanding" class="reimb-plain-input" min="0" step="1" placeholder="0">
+            </div>
+          </div>
+          <div class="add-row">
+            <div class="field-group">
+              <label class="field-label" for="reimb-expected">收款預計日期</label>
+              <input type="date" id="reimb-expected">
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="reimb-note">備註</label>
+              <input type="text" id="reimb-note" class="auth-input" placeholder="選填">
+            </div>
+          </div>
+          <div class="add-row">
+            <button type="submit" class="primary" id="reimb-submit-btn">新增</button>
+            <button type="button" class="reimb-cancel-btn" id="reimb-cancel-btn" style="display: none;">取消編輯</button>
+          </div>
+        </form>
+
+        <div class="reimb-tabs">
+          <button class="reimb-tab active" data-filter="all">全部 <span class="reimb-tab-count" id="tab-count-all">0</span></button>
+          <button class="reimb-tab" data-filter="pending">待收款 <span class="reimb-tab-count" id="tab-count-pending">0</span></button>
+          <button class="reimb-tab" data-filter="received">已收款 <span class="reimb-tab-count" id="tab-count-received">0</span></button>
+        </div>
+
+        <div class="reimb-table-wrap">
+          <table class="reimb-table">
+            <thead>
+              <tr>
+                <th>收款對象</th>
+                <th>發生日期</th>
+                <th>收款</th>
+                <th>總額</th>
+                <th>已收</th>
+                <th>待收</th>
+                <th>收款預計日期</th>
+                <th>備註</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="reimb-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <section class="page" id="page-tasks">
       <div class="card">
         <h2>✨ 待辦事項</h2>
@@ -751,7 +944,7 @@
 <script>
 // ---------- Navigation ----------
 const pageHeading = document.getElementById('page-heading');
-const pageTitles = { home: '🌺 首頁', links: '常用連結', tasks: '待辦事項', calendar: '行事曆' };
+const pageTitles = { home: '🌺 首頁', links: '常用連結', tasks: '待辦事項', calendar: '行事曆', reimbursement: '💰 公司請款項目' };
 document.querySelectorAll('.nav-item').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
@@ -1423,6 +1616,155 @@ function attachCalNav(prevId, nextId) {
 attachCalNav('cal-prev', 'cal-next');
 attachCalNav('cal-prev-home', 'cal-next-home');
 
+// ---------- 公司請款項目 ----------
+let reimbursements = [];
+let reimbEditingIdx = null;
+let reimbFilter = 'all';
+
+const reimbForm = document.getElementById('reimb-form');
+const reimbTableBody = document.getElementById('reimb-table-body');
+const reimbSubmitBtn = document.getElementById('reimb-submit-btn');
+const reimbCancelBtn = document.getElementById('reimb-cancel-btn');
+
+function formatDateSlash(iso) {
+  if (!iso) return '—';
+  return iso.replace(/-/g, '/');
+}
+
+function renderReimbursements() {
+  const indexed = reimbursements.map((r, idx) => ({ r, idx }));
+  const countAll = indexed.length;
+  const countPending = indexed.filter(x => !x.r.received).length;
+  const countReceived = indexed.filter(x => x.r.received).length;
+  document.getElementById('tab-count-all').textContent = countAll;
+  document.getElementById('tab-count-pending').textContent = countPending;
+  document.getElementById('tab-count-received').textContent = countReceived;
+
+  let totalSum = 0, receivedSum = 0, outstandingSum = 0;
+  reimbursements.forEach(r => {
+    const total = Number(r.total) || 0;
+    const outstanding = Number(r.outstanding) || 0;
+    totalSum += total;
+    outstandingSum += outstanding;
+    receivedSum += (total - outstanding);
+  });
+  document.getElementById('reimb-total-sum').textContent = '$' + totalSum.toLocaleString();
+  document.getElementById('reimb-received-sum').textContent = '$' + receivedSum.toLocaleString();
+  document.getElementById('reimb-outstanding-sum').textContent = '$' + outstandingSum.toLocaleString();
+
+  const visible = indexed.filter(x => {
+    if (reimbFilter === 'pending') return !x.r.received;
+    if (reimbFilter === 'received') return x.r.received;
+    return true;
+  });
+
+  reimbTableBody.innerHTML = '';
+  if (visible.length === 0) {
+    reimbTableBody.innerHTML = '<tr><td colspan="9" class="empty">目前沒有請款項目。</td></tr>';
+    return;
+  }
+
+  visible.forEach(({ r, idx }) => {
+    const total = Number(r.total) || 0;
+    const outstanding = Number(r.outstanding) || 0;
+    const receivedAmount = total - outstanding;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${escapeHtml(r.payee || '(未填寫)')}</td>
+      <td>${formatDateSlash(r.date)}</td>
+      <td><input type="checkbox" class="reimb-checkbox" ${r.received ? 'checked' : ''}></td>
+      <td>${total.toLocaleString()}</td>
+      <td>${receivedAmount.toLocaleString()}</td>
+      <td class="reimb-outstanding-cell">${outstanding.toLocaleString()}</td>
+      <td>${formatDateSlash(r.expected)}</td>
+      <td>${escapeHtml(r.note || '—')}</td>
+      <td>
+        <div class="reimb-table-actions">
+          <button class="edit-btn">編輯</button>
+          <button class="del-btn">刪除</button>
+        </div>
+      </td>
+    `;
+    tr.querySelector('.reimb-checkbox').addEventListener('change', async (e) => {
+      reimbursements[idx].received = e.target.checked;
+      await saveData('reimbursements', reimbursements);
+      renderReimbursements();
+    });
+    tr.querySelector('.edit-btn').addEventListener('click', () => startEditReimb(idx));
+    tr.querySelector('.del-btn').addEventListener('click', async () => {
+      reimbursements.splice(idx, 1);
+      await saveData('reimbursements', reimbursements);
+      if (reimbEditingIdx === idx) resetReimbForm();
+      renderReimbursements();
+    });
+    reimbTableBody.appendChild(tr);
+  });
+}
+
+document.querySelectorAll('.reimb-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.reimb-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    reimbFilter = btn.dataset.filter;
+    renderReimbursements();
+  });
+});
+
+function startEditReimb(idx) {
+  const r = reimbursements[idx];
+  reimbEditingIdx = idx;
+  document.getElementById('reimb-payee').value = r.payee || '';
+  document.getElementById('reimb-date').value = r.date || '';
+  document.getElementById('reimb-total').value = r.total || '';
+  document.getElementById('reimb-outstanding').value = r.outstanding || '';
+  document.getElementById('reimb-expected').value = r.expected || '';
+  document.getElementById('reimb-note').value = r.note || '';
+  reimbSubmitBtn.textContent = '更新';
+  reimbCancelBtn.style.display = '';
+}
+
+function resetReimbForm() {
+  reimbEditingIdx = null;
+  reimbForm.reset();
+  reimbSubmitBtn.textContent = '新增';
+  reimbCancelBtn.style.display = 'none';
+}
+
+reimbCancelBtn.addEventListener('click', resetReimbForm);
+
+reimbForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payee = document.getElementById('reimb-payee').value.trim();
+  const date = document.getElementById('reimb-date').value;
+  const total = document.getElementById('reimb-total').value;
+  const outstanding = document.getElementById('reimb-outstanding').value;
+  const expected = document.getElementById('reimb-expected').value;
+  const note = document.getElementById('reimb-note').value.trim();
+
+  if (!payee) return;
+
+  const existingReceived = reimbEditingIdx !== null ? reimbursements[reimbEditingIdx].received : false;
+
+  const entry = {
+    payee,
+    date,
+    total: total === '' ? 0 : Number(total),
+    outstanding: outstanding === '' ? 0 : Number(outstanding),
+    expected,
+    note,
+    received: existingReceived,
+  };
+
+  if (reimbEditingIdx !== null) {
+    reimbursements[reimbEditingIdx] = entry;
+  } else {
+    reimbursements.push(entry);
+  }
+  await saveData('reimbursements', reimbursements);
+  resetReimbForm();
+  renderReimbursements();
+});
+
 // ---------- Utility ----------
 function escapeHtml(str) {
   const div = document.createElement('div');
@@ -1443,8 +1785,11 @@ async function init() {
   });
   multiEvents = multiEvents.map(me => me.category ? me : { ...me, category: 'personal' });
   recurringEvents = recurringEvents.map(rec => rec.category ? rec : { ...rec, category: 'personal' });
+  reimbursements = await loadData('reimbursements', []);
+  reimbursements = reimbursements.map(r => (!r.date && r.month) ? { ...r, date: r.month + '-01' } : r);
   renderLinks();
   renderTasks();
+  renderReimbursements();
 
   const today = new Date();
   calYear = today.getFullYear();
