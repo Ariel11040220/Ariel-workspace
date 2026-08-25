@@ -1,1 +1,1439 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ariel 工作版</title>
+<style>
+  :root {
+    --bg: #eaf4fb;
+    --card: #ffffff;
+    --border: #cde6f5;
+    --text: #2c3e4a;
+    --text-secondary: #5b7c8d;
+    --text-muted: #93b3c4;
+    --accent: #6ec3e0;
+    --accent-bg: #d5eef8;
+    --accent-text: #1f7fa0;
+    --danger: #f2938a;
+    --field-bg: #f2f9fd;
+    --sidebar-bg: #f6fbfe;
+    --radius: 10px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  .app {
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: 200px;
+    flex-shrink: 0;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border);
+    padding: 24px 14px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .sidebar nav { flex: 1; }
+  .sidebar-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px;
+    border-top: 1px solid var(--border);
+  }
+  .user-email {
+    font-size: 11px;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .signout-btn {
+    flex-shrink: 0;
+    font-size: 12px;
+    padding: 4px 10px;
+  }
+
+  #auth-gate {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  .auth-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 36px 32px;
+    text-align: center;
+    max-width: 320px;
+  }
+  .auth-title {
+    font-size: 20px;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+  .auth-sub {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+  }
+  #email-auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .auth-input {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+    background: var(--field-bg);
+    color: #2c2c2a;
+    font-family: inherit;
+  }
+  .auth-input:focus { outline: none; border-color: var(--accent); }
+  .auth-submit-btn {
+    width: 100%;
+    padding: 10px 0;
+    margin-top: 4px;
+  }
+  .auth-error {
+    font-size: 12px;
+    color: var(--danger);
+    margin-top: 12px;
+    min-height: 16px;
+  }
+  .sidebar-title {
+    font-size: 15px;
+    font-weight: 500;
+    padding: 0 10px;
+    margin-bottom: 20px;
+  }
+  .nav-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: none;
+    background: none;
+    padding: 9px 10px;
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    margin-bottom: 2px;
+  }
+  .nav-item:hover { background: var(--bg); color: var(--text); }
+  .nav-item.active {
+    background: var(--accent-bg);
+    color: var(--accent-text);
+    font-weight: 500;
+  }
+
+  .main {
+    flex: 1;
+    min-width: 0;
+    padding: 32px 28px 80px;
+  }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  @media (max-width: 720px) {
+    .app { flex-direction: column; }
+    .sidebar {
+      width: 100%;
+      height: auto;
+      position: static;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      padding: 14px;
+    }
+    .sidebar nav { display: flex; gap: 6px; }
+    .sidebar-title { display: none; }
+    .nav-item { width: auto; }
+    .main { padding: 20px 16px 60px; }
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  h1 {
+    font-size: 22px;
+    font-weight: 500;
+    margin: 0;
+  }
+  .clock {
+    text-align: right;
+  }
+  .clock .time {
+    font-size: 28px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .clock .date {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 720px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 20px;
+  }
+  .card h2 {
+    font-size: 15px;
+    font-weight: 500;
+    margin: 0 0 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text);
+  }
+  .full { grid-column: 1 / -1; }
+
+  .add-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 0 0 150px;
+  }
+  .field-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+  .field-group input[type="date"] {
+    width: 100%;
+    height: 38px;
+  }
+  .field-group select {
+    box-sizing: border-box;
+    width: 100%;
+    height: 38px;
+    min-height: 38px;
+    max-height: 38px;
+    line-height: 20px;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  input[type="text"], input[type="url"], input[type="date"], textarea {
+    flex: 1;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 14px;
+    background: var(--field-bg);
+    color: #2c2c2a;
+    font-family: inherit;
+  }
+  input:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  button {
+    border: 1px solid var(--border);
+    background: var(--card);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--text);
+    white-space: nowrap;
+  }
+  button:hover { background: var(--bg); }
+  button.primary {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+  button.primary:hover { opacity: 0.9; }
+  button.icon-btn {
+    border: none;
+    background: none;
+    padding: 4px 6px;
+    color: var(--text-muted);
+    font-size: 13px;
+  }
+  button.icon-btn:hover { color: var(--danger); }
+
+  ul { list-style: none; margin: 0; padding: 0; }
+
+  /* Links */
+  .link-checkbox {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .link-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .link-item:last-child { border-bottom: none; }
+  .link-item a {
+    color: var(--text);
+    text-decoration: none;
+    font-size: 14px;
+  }
+  .link-item a:hover { color: var(--accent); }
+  .link-item .url-sub {
+    font-size: 12px;
+    color: var(--text-muted);
+    display: block;
+  }
+
+  /* Tasks */
+  .priority-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    margin-bottom: 14px;
+  }
+  .priority-btn {
+    flex: 1;
+    padding: 7px 0;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 2px solid transparent;
+    opacity: 0.5;
+    font-family: inherit;
+  }
+  .priority-btn.selected { opacity: 1; border-color: var(--text); }
+  .priority-btn.urgent { background: #e2413f; color: #ffffff; }
+  .priority-btn.normal { background: var(--field-bg); color: #2c2c2a; }
+  .priority-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    background: #e2413f;
+    color: #ffffff;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-right: 6px;
+    flex-shrink: 0;
+  }
+
+  .task-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .task-item:last-child { border-bottom: none; }
+  .task-item span.label {
+    flex: 1;
+    font-size: 14px;
+  }
+  .task-item.done span.label {
+    text-decoration: line-through;
+    color: var(--text-muted);
+  }
+  .task-toggle {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    border: none;
+    background: none;
+    padding: 0;
+    font-size: 17px;
+    line-height: 1;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .task-toggle:hover { color: var(--accent); }
+  .task-item.done .task-toggle { color: var(--accent); }
+
+  .empty {
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 8px 0;
+  }
+
+  /* Calendar */
+  .cal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .cal-header .cal-title {
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .cal-nav {
+    display: flex;
+    gap: 4px;
+  }
+  .cal-nav button {
+    padding: 4px 10px;
+    font-size: 13px;
+  }
+  .cal-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+  .cal-dow {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-muted);
+    padding-bottom: 4px;
+  }
+  .cal-dow.weekday {
+    color: #000000;
+    font-weight: 700;
+  }
+  .cal-day {
+    min-height: 108px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 5px 4px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    position: relative;
+    border: 1px solid transparent;
+    overflow: hidden;
+  }
+  .cal-day .day-num {
+    text-align: center;
+    font-size: 13px;
+    margin-bottom: 3px;
+    flex-shrink: 0;
+  }
+  .cal-day:hover { background: var(--bg); }
+  .cal-day.empty-cell { cursor: default; }
+  .cal-day.empty-cell:hover { background: none; }
+  .cal-day.today .day-num {
+    color: var(--accent-text);
+    font-weight: 600;
+  }
+  .cal-day.selected {
+    background: var(--accent-bg);
+  }
+  select {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 28px 8px 10px;
+    font-size: 14px;
+    line-height: 1.4;
+    background: var(--field-bg);
+    color: #2c2c2a;
+    font-family: inherit;
+    flex: 0 0 84px;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%236b6a64'><path d='M5.5 7.5l4.5 4.5 4.5-4.5' stroke='%236b6a64' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 14px;
+  }
+  select:focus { outline: none; border-color: var(--accent); }
+
+  .event-chip {
+    font-size: 12px;
+    line-height: 1.6;
+    background: var(--accent);
+    color: #ffffff;
+    border-radius: 4px;
+    padding: 0 4px;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cat-company { background: #00EC00; color: #000000; font-weight: 700; }
+  .cat-home { background: #FF2D2D; color: #ffffff; font-weight: 700; }
+  .cat-personal { background: #1f3a8a; color: #ffffff; }
+  .cat-recurring { background: #E5DFFF; color: #3b2f6b; }
+  .cat-tag {
+    display: inline-block;
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 4px;
+    margin-right: 6px;
+    flex-shrink: 0;
+  }
+  .event-chip-more {
+    font-size: 10px;
+    color: var(--text-muted);
+    padding: 0 4px;
+  }
+  @media (max-width: 720px) {
+    .cal-day { min-height: 80px; }
+    .event-chip, .event-chip-more { font-size: 9px; }
+  }
+  .cal-events {
+    margin-top: 16px;
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+  }
+  .cal-events h3 {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin: 0 0 10px;
+  }
+  .event-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+  }
+  .event-item:last-child { border-bottom: none; }
+  .event-item .event-main { display: flex; flex-direction: column; gap: 2px; }
+  .event-item .event-sub { font-size: 11px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.13.0/firebase-app-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.13.0/firebase-auth-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.13.0/firebase-firestore-compat.min.js"></script>
+
+<div id="auth-gate">
+  <div class="auth-box">
+    <div class="auth-title">Ariel 工作版</div>
+    <p class="auth-sub">登入後即可使用,資料會自動同步。</p>
+    <form id="email-auth-form">
+      <input type="text" id="auth-username" class="auth-input" placeholder="帳號" required autocomplete="username">
+      <input type="password" id="auth-password" class="auth-input" placeholder="密碼" required autocomplete="current-password">
+      <button type="submit" class="primary auth-submit-btn">登入</button>
+    </form>
+    <p id="auth-error" class="auth-error"></p>
+  </div>
+</div>
+
+<div class="app" id="app-root" style="display: none;">
+  <aside class="sidebar">
+    <div class="sidebar-title">Ariel 工作版</div>
+    <nav>
+      <button class="nav-item active" data-page="home">首頁</button>
+      <button class="nav-item" data-page="links">🌐 常用連結</button>
+      <button class="nav-item" data-page="tasks">✨ 待辦事項</button>
+      <button class="nav-item" data-page="calendar">📆 行事曆</button>
+    </nav>
+    <div class="sidebar-footer">
+      <span id="user-email" class="user-email"></span>
+      <button id="signout-btn" class="signout-btn">登出</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header>
+      <h1 id="page-heading">首頁</h1>
+      <div class="clock">
+        <div class="time" id="time">--:--</div>
+        <div class="date" id="date">載入中</div>
+      </div>
+    </header>
+
+    <section class="page active" id="page-home">
+      <div class="grid">
+        <div class="card">
+          <h2>🌐 常用連結</h2>
+          <ul id="link-list-home"></ul>
+        </div>
+
+        <div class="card">
+          <h2>✨ 待辦事項</h2>
+          <form id="task-form-home">
+            <div class="add-row">
+              <input type="text" id="task-text-home" placeholder="新增任務...">
+              <button type="submit" class="primary">新增</button>
+            </div>
+            <div class="priority-row" id="task-priority-home">
+              <button type="button" class="priority-btn urgent" data-priority="urgent">緊急</button>
+              <button type="button" class="priority-btn normal selected" data-priority="normal">一般</button>
+            </div>
+          </form>
+          <ul id="task-list-home"></ul>
+        </div>
+
+        <div class="card full">
+          <h2>📆 行事曆</h2>
+          <div class="cal-header">
+            <div class="cal-nav"><button id="cal-prev-home">‹</button></div>
+            <div class="cal-title" id="cal-title-home"></div>
+            <div class="cal-nav"><button id="cal-next-home">›</button></div>
+          </div>
+          <div class="cal-grid" id="cal-grid-home"></div>
+          <div class="cal-events">
+            <h3 id="cal-events-title-home">選擇日期</h3>
+            <form id="event-form-home">
+              <div class="add-row">
+                <input type="text" id="event-text-home" placeholder="新增行程...">
+                <select id="event-category-home">
+                  <option value="company" style="background:#00EC00; color:#000000; font-weight:700;">公司</option>
+                  <option value="home" style="background:#FF2D2D; color:#ffffff; font-weight:700;">家裡</option>
+                  <option value="personal" selected style="background:#1f3a8a; color:#ffffff;">個人</option>
+                </select>
+              </div>
+              <div class="add-row">
+                <div class="field-group">
+                  <label class="field-label" for="event-start-home">開始日期</label>
+                  <input type="date" id="event-start-home">
+                </div>
+                <div class="field-group">
+                  <label class="field-label" for="event-end-home">結束日期</label>
+                  <input type="date" id="event-end-home" title="結束日期(選填,跨日行程用)">
+                </div>
+                <button type="submit" class="primary">新增</button>
+              </div>
+            </form>
+            <ul id="event-list-home"></ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="page-links">
+      <div class="card">
+        <h2>🌐 常用連結</h2>
+        <form class="add-row" id="link-form">
+          <input type="checkbox" id="link-showhome" class="link-checkbox" title="打勾:同時顯示在首頁">
+          <input type="text" id="link-name" placeholder="名稱" style="flex: 0 0 30%;">
+          <input type="url" id="link-url" placeholder="https://example.com">
+          <button type="submit" class="primary">新增</button>
+        </form>
+        <ul id="link-list"></ul>
+      </div>
+    </section>
+
+    <section class="page" id="page-calendar">
+      <div class="card">
+        <h2>📆 行事曆</h2>
+        <div class="cal-header">
+          <div class="cal-nav"><button id="cal-prev">‹</button></div>
+          <div class="cal-title" id="cal-title"></div>
+          <div class="cal-nav"><button id="cal-next">›</button></div>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+        <div class="cal-events">
+          <h3 id="cal-events-title">選擇日期</h3>
+          <form id="event-form">
+            <div class="add-row">
+              <input type="text" id="event-text" placeholder="新增行程...">
+              <select id="event-category">
+                <option value="company" style="background:#00EC00; color:#000000; font-weight:700;">公司</option>
+                <option value="home" style="background:#FF2D2D; color:#ffffff; font-weight:700;">家裡</option>
+                <option value="personal" selected style="background:#1f3a8a; color:#ffffff;">個人</option>
+              </select>
+            </div>
+            <div class="add-row">
+              <div class="field-group">
+                <label class="field-label" for="event-start">開始日期</label>
+                <input type="date" id="event-start">
+              </div>
+              <div class="field-group">
+                <label class="field-label" for="event-end">結束日期</label>
+                <input type="date" id="event-end" title="結束日期(選填,跨日行程用)">
+              </div>
+              <button type="submit" class="primary">新增</button>
+            </div>
+          </form>
+          <ul id="event-list"></ul>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 20px;">
+        <h2>固定行程</h2>
+        <form id="recurring-form">
+          <div class="add-row">
+            <input type="text" id="recurring-text" placeholder="新增行程...">
+            <select id="recurring-category">
+              <option value="company" style="background:#00EC00; color:#000000; font-weight:700;">公司</option>
+              <option value="home" style="background:#FF2D2D; color:#ffffff; font-weight:700;">家裡</option>
+              <option value="personal" selected style="background:#1f3a8a; color:#ffffff;">個人</option>
+            </select>
+          </div>
+          <div class="add-row">
+            <div class="field-group">
+              <label class="field-label" for="recurring-start">開始日期</label>
+              <input type="date" id="recurring-start">
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="recurring-end">結束日期</label>
+              <input type="date" id="recurring-end">
+            </div>
+            <div class="field-group">
+              <label class="field-label" for="recurring-freq">重複頻率</label>
+              <select id="recurring-freq">
+                <option value="daily">每天</option>
+                <option value="weekly">每週</option>
+                <option value="monthly">每月</option>
+                <option value="yearly">每年</option>
+              </select>
+            </div>
+            <button type="submit" class="primary">新增</button>
+          </div>
+        </form>
+        <ul id="recurring-list"></ul>
+      </div>
+    </section>
+
+    <section class="page" id="page-tasks">
+      <div class="card">
+        <h2>✨ 待辦事項</h2>
+        <form id="task-form">
+          <div class="add-row">
+            <input type="text" id="task-text" placeholder="新增任務...">
+            <button type="submit" class="primary">新增</button>
+          </div>
+          <div class="priority-row" id="task-priority">
+            <button type="button" class="priority-btn urgent" data-priority="urgent">緊急</button>
+            <button type="button" class="priority-btn normal selected" data-priority="normal">一般</button>
+          </div>
+        </form>
+        <ul id="task-list"></ul>
+      </div>
+
+      <div class="card" style="margin-top: 20px;">
+        <h2>已完成事項</h2>
+        <ul id="task-list-done"></ul>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+// ---------- Navigation ----------
+const pageHeading = document.getElementById('page-heading');
+const pageTitles = { home: '首頁', links: '常用連結', tasks: '待辦事項', calendar: '行事曆' };
+document.querySelectorAll('.nav-item').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    const pageId = 'page-' + btn.dataset.page;
+    document.getElementById(pageId).classList.add('active');
+    pageHeading.textContent = pageTitles[btn.dataset.page];
+  });
+});
+
+// ---------- Clock ----------
+function updateClock() {
+  const now = new Date();
+  const time = now.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const date = now.toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+  document.getElementById('time').textContent = time;
+  document.getElementById('date').textContent = date;
+}
+updateClock();
+setInterval(updateClock, 1000 * 10);
+
+// ---------- Firebase 設定與登入 ----------
+const firebaseConfig = {
+  apiKey: "AIzaSyBCrMk47UmCQAbOEai6bqz07HrzRtEb9Xs",
+  authDomain: "ariel-workspace-53514.firebaseapp.com",
+  projectId: "ariel-workspace-53514",
+  storageBucket: "ariel-workspace-53514.firebasestorage.app",
+  messagingSenderId: "496996937825",
+  appId: "1:496996937825:web:5fb0956ce10f049e9b7a20"
+};
+
+let firebaseReady = false;
+let auth, db;
+try {
+  if (typeof firebase === 'undefined') {
+    throw new Error('Firebase SDK 沒有成功載入(typeof firebase === undefined)');
+  }
+  firebase.initializeApp(firebaseConfig);
+  auth = firebase.auth();
+  db = firebase.firestore();
+  firebaseReady = true;
+} catch (e) {
+  console.error('Firebase 初始化失敗', e);
+  const errEl = document.getElementById('auth-error');
+  if (errEl) {
+    errEl.textContent = 'Firebase 載入失敗,請檢查網路連線,或確認瀏覽器沒有阻擋外部資源(廣告攔截外掛、隱私模式限制等),然後重新整理頁面。';
+  }
+}
+
+let currentUid = null;
+let firestoreCache = {};
+
+function userDocRef() {
+  return db.collection('users').doc(currentUid);
+}
+
+// ---------- Storage helpers (Firebase Firestore) ----------
+async function loadData(key, fallback) {
+  if (!currentUid) return fallback;
+  return firestoreCache[key] !== undefined ? firestoreCache[key] : fallback;
+}
+async function saveData(key, value) {
+  if (!currentUid) return;
+  const clean = JSON.parse(JSON.stringify(value));
+  firestoreCache[key] = clean;
+  try {
+    await userDocRef().set({ [key]: clean }, { merge: true });
+  } catch (e) {
+    console.error('Firestore save error', e);
+  }
+}
+
+// ---------- 舊本機資料搬家(只在第一次登入、雲端還沒有資料時執行) ----------
+function migrateLocalStorageIfNeeded() {
+  const OLD_PREFIX = 'ariel-workspace:';
+  const keysToMigrate = ['links', 'tasks', 'events', 'multiEvents', 'recurringEvents'];
+  const migrated = {};
+  let found = false;
+  keysToMigrate.forEach(key => {
+    const raw = localStorage.getItem(OLD_PREFIX + key);
+    if (raw !== null) {
+      try {
+        migrated[key] = JSON.parse(raw);
+        found = true;
+      } catch (e) { /* skip invalid */ }
+    }
+  });
+  return found ? migrated : null;
+}
+
+// 帳號名稱 → 實際 Firebase 登入 Email 的對照表
+const USERNAME_TO_EMAIL = {
+  'ariel': 'ariel184511@gmail.com',
+};
+
+document.getElementById('email-auth-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('auth-error');
+  if (!firebaseReady) {
+    errEl.textContent = 'Firebase 尚未成功載入,請重新整理頁面再試一次(若持續發生,請檢查網路連線)。';
+    return;
+  }
+  errEl.textContent = '';
+  const username = document.getElementById('auth-username').value.trim().toLowerCase();
+  const password = document.getElementById('auth-password').value;
+  const email = USERNAME_TO_EMAIL[username];
+
+  const errorMessages = {
+    'auth/invalid-email': '帳號或密碼錯誤。',
+    'auth/user-not-found': '帳號或密碼錯誤。',
+    'auth/wrong-password': '帳號或密碼錯誤。',
+    'auth/invalid-credential': '帳號或密碼錯誤。',
+    'auth/too-many-requests': '嘗試次數過多,請稍後再試。',
+  };
+
+  if (!email) {
+    errEl.textContent = '帳號或密碼錯誤。';
+    return;
+  }
+
+  auth.signInWithEmailAndPassword(email, password).catch(err => {
+    errEl.textContent = errorMessages[err.code] || ('登入失敗:' + (err.message || '請再試一次。'));
+    console.error('Sign-in error', err);
+  });
+});
+
+document.getElementById('signout-btn').addEventListener('click', () => {
+  if (auth) auth.signOut();
+});
+
+if (firebaseReady) {
+  auth.onAuthStateChanged(async (user) => {
+  const gate = document.getElementById('auth-gate');
+  const appRoot = document.getElementById('app-root');
+  if (user) {
+    currentUid = user.uid;
+    document.getElementById('user-email').textContent = user.email || user.displayName || '';
+
+    let docSnap;
+    try {
+      docSnap = await userDocRef().get();
+    } catch (e) {
+      console.error('Firestore read error', e);
+      docSnap = null;
+    }
+    const cloudData = docSnap && docSnap.exists ? docSnap.data() : {};
+    const hasCloudData = cloudData && Object.keys(cloudData).length > 0;
+
+    if (!hasCloudData) {
+      const localData = migrateLocalStorageIfNeeded();
+      if (localData) {
+        try {
+          await userDocRef().set(localData, { merge: true });
+          firestoreCache = localData;
+        } catch (e) {
+          console.error('Migration write error', e);
+          firestoreCache = {};
+        }
+      } else {
+        firestoreCache = {};
+      }
+    } else {
+      firestoreCache = cloudData;
+    }
+
+    gate.style.display = 'none';
+    appRoot.style.display = '';
+    init();
+  } else {
+    currentUid = null;
+    firestoreCache = {};
+    gate.style.display = 'flex';
+    appRoot.style.display = 'none';
+  }
+  });
+}
+
+// ---------- Links ----------
+let links = [];
+const linkListHome = document.getElementById('link-list-home');
+const linkListPage = document.getElementById('link-list');
+const linkFormPage = document.getElementById('link-form');
+
+function buildLinkItem(link, idx) {
+  const li = document.createElement('li');
+  li.className = 'link-item';
+  const safeUrl = /^https?:\/\//i.test(link.url) ? link.url : 'https://' + link.url;
+  li.innerHTML = `
+    <a href="${safeUrl}" target="_blank" rel="noopener">${escapeHtml(link.name)}
+      <span class="url-sub">${escapeHtml(link.url)}</span>
+    </a>
+    <button class="icon-btn" aria-label="刪除">✕</button>
+  `;
+  li.querySelector('button').addEventListener('click', async () => {
+    links.splice(idx, 1);
+    await saveData('links', links);
+    renderLinks();
+  });
+  return li;
+}
+
+function fillLinkList(container, items, emptyText) {
+  container.innerHTML = '';
+  if (items.length === 0) {
+    container.innerHTML = `<li class="empty">${emptyText}</li>`;
+    return;
+  }
+  items.forEach(({ link, idx }) => container.appendChild(buildLinkItem(link, idx)));
+}
+
+function renderLinks() {
+  const indexed = links.map((link, idx) => ({ link, idx }));
+  const homeItems = indexed.filter(x => x.link.showOnHome !== false);
+  fillLinkList(linkListHome, homeItems, '還沒有連結,新增一個吧。');
+  fillLinkList(linkListPage, indexed, '還沒有連結,新增一個吧。');
+}
+
+async function addLink(name, url, showOnHome) {
+  if (!url) return;
+  links.push({ name: name || url, url, showOnHome });
+  await saveData('links', links);
+  renderLinks();
+}
+
+linkFormPage.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const nameInput = document.getElementById('link-name');
+  const urlInput = document.getElementById('link-url');
+  const showInput = document.getElementById('link-showhome');
+  await addLink(nameInput.value.trim(), urlInput.value.trim(), showInput.checked);
+  nameInput.value = '';
+  urlInput.value = '';
+});
+
+// ---------- Tasks ----------
+let tasks = [];
+const taskList = document.getElementById('task-list');
+const taskListDone = document.getElementById('task-list-done');
+const taskForm = document.getElementById('task-form');
+const taskListHome = document.getElementById('task-list-home');
+const taskFormHome = document.getElementById('task-form-home');
+
+function buildTaskItem(task, idx) {
+  const li = document.createElement('li');
+  li.className = 'task-item' + (task.done ? ' done' : '');
+  const urgentTag = task.priority === 'urgent' ? '<span class="priority-tag">緊急</span>' : '';
+  li.innerHTML = `
+    <button class="task-toggle" aria-label="${task.done ? '標示為未完成' : '標示為已完成'}">${task.done ? '●' : '○'}</button>
+    <span class="label">${urgentTag}${escapeHtml(task.text)}</span>
+    <button class="icon-btn" aria-label="刪除">✕</button>
+  `;
+  li.querySelector('.task-toggle').addEventListener('click', async () => {
+    tasks[idx].done = !tasks[idx].done;
+    await saveData('tasks', tasks);
+    renderTasks();
+  });
+  li.querySelector('.icon-btn').addEventListener('click', async () => {
+    tasks.splice(idx, 1);
+    await saveData('tasks', tasks);
+    renderTasks();
+  });
+  return li;
+}
+
+function fillList(container, items, emptyText) {
+  container.innerHTML = '';
+  if (items.length === 0) {
+    container.innerHTML = `<li class="empty">${emptyText}</li>`;
+    return;
+  }
+  items.forEach(({ task, idx }) => container.appendChild(buildTaskItem(task, idx)));
+}
+
+function renderTasks() {
+  const indexed = tasks.map((task, idx) => ({ task, idx }));
+  const pending = indexed.filter(t => !t.task.done);
+  fillList(taskListHome, pending, '目前沒有待辦事項。');
+  fillList(taskList, pending, '目前沒有待辦事項。');
+  fillList(taskListDone, indexed.filter(t => t.task.done), '尚無已完成的事項。');
+}
+
+async function addTask(text, priority) {
+  if (!text) return;
+  tasks.push({ text, done: false, priority: priority || 'normal' });
+  await saveData('tasks', tasks);
+  renderTasks();
+}
+
+function setupPriorityButtons(containerId, onChange) {
+  const container = document.getElementById(containerId);
+  const buttons = container.querySelectorAll('.priority-btn');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      buttons.forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      onChange(btn.dataset.priority);
+    });
+  });
+}
+
+let taskPriority = 'normal';
+let taskPriorityHome = 'normal';
+setupPriorityButtons('task-priority', p => { taskPriority = p; });
+setupPriorityButtons('task-priority-home', p => { taskPriorityHome = p; });
+
+taskForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const input = document.getElementById('task-text');
+  const text = input.value.trim();
+  await addTask(text, taskPriority);
+  input.value = '';
+});
+
+taskFormHome.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const input = document.getElementById('task-text-home');
+  const text = input.value.trim();
+  await addTask(text, taskPriorityHome);
+  input.value = '';
+});
+
+// ---------- Calendar ----------
+let events = {}; // { "YYYY-M-D": [ "text", ... ] }  (single-day events)
+let multiEvents = []; // [ { text, startISO, endISO } ]  (multi-day events)
+let recurringEvents = []; // [ { text, startISO, endISO, frequency } ]  (recurring events)
+let calYear, calMonth; // calMonth is 0-indexed
+let selectedDateKey = null;
+
+const calUIs = [
+  { grid: document.getElementById('cal-grid'), title: document.getElementById('cal-title') },
+  { grid: document.getElementById('cal-grid-home'), title: document.getElementById('cal-title-home') },
+];
+const eventUIs = [
+  { eventsTitle: document.getElementById('cal-events-title'), eventList: document.getElementById('event-list') },
+  { eventsTitle: document.getElementById('cal-events-title-home'), eventList: document.getElementById('event-list-home') },
+];
+
+function dateKey(y, m, d) {
+  return `${y}-${m}-${d}`;
+}
+function pad2(n) {
+  return String(n).padStart(2, '0');
+}
+function keyToISO(key) {
+  const [y, m, d] = key.split('-').map(Number);
+  return `${y}-${pad2(m + 1)}-${pad2(d)}`;
+}
+function ordinalFromKey(key) {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m, d).getTime();
+}
+function ordinalFromISO(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).getTime();
+}
+function isoToKey(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return dateKey(y, m - 1, d);
+}
+function todayISO() {
+  const t = new Date();
+  return `${t.getFullYear()}-${pad2(t.getMonth() + 1)}-${pad2(t.getDate())}`;
+}
+function dayInRange(key, startISO, endISO) {
+  const t = ordinalFromKey(key);
+  return t >= ordinalFromISO(startISO) && t <= ordinalFromISO(endISO);
+}
+function dateFromISO(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+const freqLabels = { daily: '每天', weekly: '每週', monthly: '每月', yearly: '每年' };
+function matchesRecurrence(rec, key) {
+  if (!dayInRange(key, rec.startISO, rec.endISO)) return false;
+  const [y, m, d] = key.split('-').map(Number);
+  const cur = new Date(y, m, d);
+  const start = dateFromISO(rec.startISO);
+  switch (rec.frequency) {
+    case 'daily': return true;
+    case 'weekly': return cur.getDay() === start.getDay();
+    case 'monthly': return cur.getDate() === start.getDate();
+    case 'yearly': return cur.getDate() === start.getDate() && cur.getMonth() === start.getMonth();
+    default: return false;
+  }
+}
+
+const categoryLabels = { company: '公司', home: '家裡', personal: '個人', recurring: '固定' };
+function categoryClass(cat) {
+  return 'cat-' + (categoryLabels[cat] ? cat : 'personal');
+}
+
+function renderCalendar() {
+  const monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  const rawFirstDay = new Date(calYear, calMonth, 1).getDay();
+  const firstDay = (rawFirstDay + 6) % 7; // 轉換為星期一為第一天(0=一...6=日)
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const today = new Date();
+  const isCurrentMonth = today.getFullYear() === calYear && today.getMonth() === calMonth;
+
+  calUIs.forEach(({ grid, title }) => {
+    title.textContent = `${calYear} 年 ${monthNames[calMonth]}`;
+    grid.innerHTML = '';
+    ['一','二','三','四','五','六','日'].forEach((d, i) => {
+      const el = document.createElement('div');
+      el.className = 'cal-dow' + (i < 5 ? ' weekday' : '');
+      el.textContent = d;
+      grid.appendChild(el);
+    });
+
+    for (let i = 0; i < firstDay; i++) {
+      const el = document.createElement('div');
+      el.className = 'cal-day empty-cell';
+      grid.appendChild(el);
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const key = dateKey(calYear, calMonth, d);
+      const el = document.createElement('div');
+      el.className = 'cal-day';
+      if (isCurrentMonth && today.getDate() === d) el.classList.add('today');
+      if (key === selectedDateKey) el.classList.add('selected');
+
+      const dayEntries = [
+        ...(events[key] || []),
+        ...multiEvents.filter(me => dayInRange(key, me.startISO, me.endISO)),
+        ...recurringEvents.filter(rec => matchesRecurrence(rec, key)).map(rec => ({ text: '↻ ' + rec.text, category: rec.category })),
+      ];
+
+      const maxChips = 3;
+      const chipsHtml = dayEntries
+        .slice(0, maxChips)
+        .map(ev => `<div class="event-chip ${categoryClass(ev.category)}">${escapeHtml(ev.text)}</div>`)
+        .join('');
+      const moreHtml = dayEntries.length > maxChips
+        ? `<div class="event-chip-more">+${dayEntries.length - maxChips} 更多</div>`
+        : '';
+
+      el.innerHTML = `<div class="day-num">${d}</div>${chipsHtml}${moreHtml}`;
+      el.addEventListener('click', () => {
+        selectedDateKey = key;
+        const iso = keyToISO(key);
+        const startInput = document.getElementById('event-start');
+        const startInputHome = document.getElementById('event-start-home');
+        if (startInput) startInput.value = iso;
+        if (startInputHome) startInputHome.value = iso;
+        renderCalendar();
+        renderEvents();
+      });
+      grid.appendChild(el);
+    }
+  });
+}
+
+function renderEvents() {
+  eventUIs.forEach(({ eventsTitle, eventList }) => {
+    if (!selectedDateKey) {
+      eventsTitle.textContent = '選擇日期';
+      eventList.innerHTML = '';
+      return;
+    }
+    const [y, m, d] = selectedDateKey.split('-').map(Number);
+    eventsTitle.textContent = `${y} 年 ${m + 1} 月 ${d} 日`;
+    const dayEvents = events[selectedDateKey] || [];
+    const matchingMulti = multiEvents
+      .map((me, idx) => ({ ...me, idx }))
+      .filter(me => dayInRange(selectedDateKey, me.startISO, me.endISO));
+    const matchingRecurring = recurringEvents
+      .map((rec, idx) => ({ ...rec, idx }))
+      .filter(rec => matchesRecurrence(rec, selectedDateKey));
+
+    eventList.innerHTML = '';
+    if (dayEvents.length === 0 && matchingMulti.length === 0 && matchingRecurring.length === 0) {
+      eventList.innerHTML = '<li class="empty">這天還沒有行程。</li>';
+      return;
+    }
+
+    dayEvents.forEach((ev, idx) => {
+      const li = document.createElement('li');
+      li.className = 'event-item';
+      li.innerHTML = `<span><span class="cat-tag ${categoryClass(ev.category)}">${categoryLabels[ev.category] || '個人'}</span>${escapeHtml(ev.text)}</span><button class="icon-btn" aria-label="刪除">✕</button>`;
+      li.querySelector('button').addEventListener('click', async () => {
+        events[selectedDateKey].splice(idx, 1);
+        if (events[selectedDateKey].length === 0) delete events[selectedDateKey];
+        await saveData('events', events);
+        renderCalendar();
+        renderEvents();
+      });
+      eventList.appendChild(li);
+    });
+
+    matchingMulti.forEach(me => {
+      const totalDays = Math.round((ordinalFromISO(me.endISO) - ordinalFromISO(me.startISO)) / 86400000) + 1;
+      const dayNum = Math.round((ordinalFromKey(selectedDateKey) - ordinalFromISO(me.startISO)) / 86400000) + 1;
+      const li = document.createElement('li');
+      li.className = 'event-item';
+      li.innerHTML = `
+        <div class="event-main">
+          <span><span class="cat-tag ${categoryClass(me.category)}">${categoryLabels[me.category] || '個人'}</span>${escapeHtml(me.text)}</span>
+          <span class="event-sub">第 ${dayNum} 天,共 ${totalDays} 天(${me.startISO} 至 ${me.endISO}）</span>
+        </div>
+        <button class="icon-btn" aria-label="刪除">✕</button>
+      `;
+      li.querySelector('button').addEventListener('click', async () => {
+        multiEvents.splice(me.idx, 1);
+        await saveData('multiEvents', multiEvents);
+        renderCalendar();
+        renderEvents();
+      });
+      eventList.appendChild(li);
+    });
+
+    matchingRecurring.forEach(rec => {
+      const li = document.createElement('li');
+      li.className = 'event-item';
+      li.innerHTML = `
+        <div class="event-main">
+          <span><span class="cat-tag ${categoryClass(rec.category)}">${categoryLabels[rec.category] || '個人'}</span>${escapeHtml(rec.text)}</span>
+          <span class="event-sub">↻ 固定行程・${freqLabels[rec.frequency] || ''}(${rec.startISO} 至 ${rec.endISO}）</span>
+        </div>
+        <button class="icon-btn" aria-label="刪除">✕</button>
+      `;
+      li.querySelector('button').addEventListener('click', async () => {
+        recurringEvents.splice(rec.idx, 1);
+        await saveData('recurringEvents', recurringEvents);
+        renderCalendar();
+        renderEvents();
+        renderRecurringList();
+      });
+      eventList.appendChild(li);
+    });
+  });
+}
+
+async function addEvent(text, startValue, endValue, category) {
+  if (!text || !startValue) return;
+  const startISO = startValue;
+
+  if (endValue && endValue !== startISO) {
+    let startISOFinal = startISO;
+    let endISOFinal = endValue;
+    if (ordinalFromISO(endISOFinal) < ordinalFromISO(startISOFinal)) {
+      [startISOFinal, endISOFinal] = [endISOFinal, startISOFinal];
+    }
+    multiEvents.push({ text, startISO: startISOFinal, endISO: endISOFinal, category });
+    await saveData('multiEvents', multiEvents);
+  } else {
+    const key = isoToKey(startISO);
+    if (!events[key]) events[key] = [];
+    events[key].push({ text, category });
+    await saveData('events', events);
+  }
+  selectedDateKey = isoToKey(startISO);
+  renderCalendar();
+  renderEvents();
+}
+
+function attachEventForm(formId, textId, startId, endId, categoryId) {
+  const form = document.getElementById(formId);
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const textInput = document.getElementById(textId);
+    const startInput = document.getElementById(startId);
+    const endInput = document.getElementById(endId);
+    const categoryInput = document.getElementById(categoryId);
+    const text = textInput.value.trim();
+    if (!text) return;
+    await addEvent(text, startInput.value, endInput.value, categoryInput.value);
+    textInput.value = '';
+    endInput.value = '';
+  });
+}
+attachEventForm('event-form', 'event-text', 'event-start', 'event-end', 'event-category');
+attachEventForm('event-form-home', 'event-text-home', 'event-start-home', 'event-end-home', 'event-category-home');
+
+// ---------- Recurring events ----------
+const recurringList = document.getElementById('recurring-list');
+const recurringForm = document.getElementById('recurring-form');
+
+function renderRecurringList() {
+  recurringList.innerHTML = '';
+  if (recurringEvents.length === 0) {
+    recurringList.innerHTML = '<li class="empty">目前沒有固定行程。</li>';
+    return;
+  }
+  recurringEvents.forEach((rec, idx) => {
+    const li = document.createElement('li');
+    li.className = 'event-item';
+    li.innerHTML = `
+      <div class="event-main">
+        <span><span class="cat-tag ${categoryClass(rec.category)}">${categoryLabels[rec.category] || '個人'}</span>${escapeHtml(rec.text)}</span>
+        <span class="event-sub">↻ 固定行程・${freqLabels[rec.frequency] || ''}(${rec.startISO} 至 ${rec.endISO}）</span>
+      </div>
+      <button class="icon-btn" aria-label="刪除">✕</button>
+    `;
+    li.querySelector('button').addEventListener('click', async () => {
+      recurringEvents.splice(idx, 1);
+      await saveData('recurringEvents', recurringEvents);
+      renderCalendar();
+      renderEvents();
+      renderRecurringList();
+    });
+    recurringList.appendChild(li);
+  });
+}
+
+recurringForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const textInput = document.getElementById('recurring-text');
+  const startInput = document.getElementById('recurring-start');
+  const endInput = document.getElementById('recurring-end');
+  const freqInput = document.getElementById('recurring-freq');
+  const categoryInput = document.getElementById('recurring-category');
+  const text = textInput.value.trim();
+  if (!text || !startInput.value || !endInput.value) return;
+
+  let startISO = startInput.value;
+  let endISO = endInput.value;
+  if (ordinalFromISO(endISO) < ordinalFromISO(startISO)) {
+    [startISO, endISO] = [endISO, startISO];
+  }
+
+  recurringEvents.push({ text, startISO, endISO, frequency: freqInput.value, category: categoryInput.value });
+  await saveData('recurringEvents', recurringEvents);
+
+  textInput.value = '';
+  startInput.value = '';
+  endInput.value = '';
+  renderCalendar();
+  renderEvents();
+  renderRecurringList();
+});
+
+function attachCalNav(prevId, nextId) {
+  document.getElementById(prevId).addEventListener('click', () => {
+    calMonth--;
+    if (calMonth < 0) { calMonth = 11; calYear--; }
+    renderCalendar();
+  });
+  document.getElementById(nextId).addEventListener('click', () => {
+    calMonth++;
+    if (calMonth > 11) { calMonth = 0; calYear++; }
+    renderCalendar();
+  });
+}
+attachCalNav('cal-prev', 'cal-next');
+attachCalNav('cal-prev-home', 'cal-next-home');
+
+// ---------- Utility ----------
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ---------- Init ----------
+async function init() {
+  links = await loadData('links', []);
+  links = links.map(link => link.showOnHome === undefined ? { ...link, showOnHome: true } : link);
+  tasks = await loadData('tasks', []);
+  events = await loadData('events', {});
+  multiEvents = await loadData('multiEvents', []);
+  recurringEvents = await loadData('recurringEvents', []);
+  Object.keys(events).forEach(key => {
+    events[key] = events[key].map(item => typeof item === 'string' ? { text: item, category: 'personal' } : item);
+  });
+  multiEvents = multiEvents.map(me => me.category ? me : { ...me, category: 'personal' });
+  recurringEvents = recurringEvents.map(rec => rec.category ? rec : { ...rec, category: 'personal' });
+  renderLinks();
+  renderTasks();
+
+  const today = new Date();
+  calYear = today.getFullYear();
+  calMonth = today.getMonth();
+  selectedDateKey = dateKey(calYear, calMonth, today.getDate());
+  document.getElementById('event-start').value = todayISO();
+  document.getElementById('event-start-home').value = todayISO();
+  renderCalendar();
+  renderEvents();
+  renderRecurringList();
+}
+</script>
+</body>
+</html>
 
