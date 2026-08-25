@@ -599,16 +599,6 @@
 
         <div class="card">
           <h2>✨ 待辦事項</h2>
-          <form id="task-form-home">
-            <div class="add-row">
-              <input type="text" id="task-text-home" placeholder="新增任務...">
-              <button type="submit" class="primary">新增</button>
-            </div>
-            <div class="priority-row" id="task-priority-home">
-              <button type="button" class="priority-btn urgent" data-priority="urgent">緊急</button>
-              <button type="button" class="priority-btn normal selected" data-priority="normal">一般</button>
-            </div>
-          </form>
           <ul id="task-list-home"></ul>
         </div>
 
@@ -1034,7 +1024,6 @@ const taskList = document.getElementById('task-list');
 const taskListDone = document.getElementById('task-list-done');
 const taskForm = document.getElementById('task-form');
 const taskListHome = document.getElementById('task-list-home');
-const taskFormHome = document.getElementById('task-form-home');
 
 function buildTaskItem(task, idx, showDelete) {
   const li = document.createElement('li');
@@ -1098,23 +1087,13 @@ function setupPriorityButtons(containerId, onChange) {
 }
 
 let taskPriority = 'normal';
-let taskPriorityHome = 'normal';
 setupPriorityButtons('task-priority', p => { taskPriority = p; });
-setupPriorityButtons('task-priority-home', p => { taskPriorityHome = p; });
 
 taskForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const input = document.getElementById('task-text');
   const text = input.value.trim();
   await addTask(text, taskPriority);
-  input.value = '';
-});
-
-taskFormHome.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const input = document.getElementById('task-text-home');
-  const text = input.value.trim();
-  await addTask(text, taskPriorityHome);
   input.value = '';
 });
 
