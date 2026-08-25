@@ -231,12 +231,19 @@
     align-items: flex-end;
     gap: 8px;
     margin-bottom: 14px;
+    flex-wrap: wrap;
   }
   .field-group {
     display: flex;
     flex-direction: column;
     gap: 3px;
-    flex: 0 0 150px;
+    flex: 1 1 150px;
+    min-width: 0;
+  }
+  @media (max-width: 480px) {
+    .add-row { gap: 6px; }
+    .field-group { flex: 1 1 45%; }
+    .add-row > button[type="submit"] { flex: 1 1 100%; }
   }
   .field-label {
     font-size: 11px;
