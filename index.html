@@ -936,38 +936,41 @@ const linkListHome = document.getElementById('link-list-home');
 const linkListPage = document.getElementById('link-list');
 const linkFormPage = document.getElementById('link-form');
 
-function buildLinkItem(link, idx) {
+function buildLinkItem(link, idx, showDelete) {
   const li = document.createElement('li');
   li.className = 'link-item';
   const safeUrl = /^https?:\/\//i.test(link.url) ? link.url : 'https://' + link.url;
+  const deleteBtn = showDelete ? '<button class="icon-btn" aria-label="刪除">✕</button>' : '';
   li.innerHTML = `
     <a href="${safeUrl}" target="_blank" rel="noopener">${escapeHtml(link.name)}
       <span class="url-sub">${escapeHtml(link.url)}</span>
     </a>
-    <button class="icon-btn" aria-label="刪除">✕</button>
+    ${deleteBtn}
   `;
-  li.querySelector('button').addEventListener('click', async () => {
-    links.splice(idx, 1);
-    await saveData('links', links);
-    renderLinks();
-  });
+  if (showDelete) {
+    li.querySelector('.icon-btn').addEventListener('click', async () => {
+      links.splice(idx, 1);
+      await saveData('links', links);
+      renderLinks();
+    });
+  }
   return li;
 }
 
-function fillLinkList(container, items, emptyText) {
+function fillLinkList(container, items, emptyText, showDelete) {
   container.innerHTML = '';
   if (items.length === 0) {
     container.innerHTML = `<li class="empty">${emptyText}</li>`;
     return;
   }
-  items.forEach(({ link, idx }) => container.appendChild(buildLinkItem(link, idx)));
+  items.forEach(({ link, idx }) => container.appendChild(buildLinkItem(link, idx, showDelete)));
 }
 
 function renderLinks() {
   const indexed = links.map((link, idx) => ({ link, idx }));
   const homeItems = indexed.filter(x => x.link.showOnHome !== false);
-  fillLinkList(linkListHome, homeItems, '還沒有連結,新增一個吧。');
-  fillLinkList(linkListPage, indexed, '還沒有連結,新增一個吧。');
+  fillLinkList(linkListHome, homeItems, '還沒有連結,新增一個吧。', false);
+  fillLinkList(linkListPage, indexed, '還沒有連結,新增一個吧。', true);
 }
 
 async function addLink(name, url, showOnHome) {
@@ -995,43 +998,46 @@ const taskForm = document.getElementById('task-form');
 const taskListHome = document.getElementById('task-list-home');
 const taskFormHome = document.getElementById('task-form-home');
 
-function buildTaskItem(task, idx) {
+function buildTaskItem(task, idx, showDelete) {
   const li = document.createElement('li');
   li.className = 'task-item' + (task.done ? ' done' : '');
   const urgentTag = task.priority === 'urgent' ? '<span class="priority-tag">緊急</span>' : '';
+  const deleteBtn = showDelete ? '<button class="icon-btn" aria-label="刪除">✕</button>' : '';
   li.innerHTML = `
     <button class="task-toggle" aria-label="${task.done ? '標示為未完成' : '標示為已完成'}">${task.done ? '●' : '○'}</button>
     <span class="label">${urgentTag}${escapeHtml(task.text)}</span>
-    <button class="icon-btn" aria-label="刪除">✕</button>
+    ${deleteBtn}
   `;
   li.querySelector('.task-toggle').addEventListener('click', async () => {
     tasks[idx].done = !tasks[idx].done;
     await saveData('tasks', tasks);
     renderTasks();
   });
-  li.querySelector('.icon-btn').addEventListener('click', async () => {
-    tasks.splice(idx, 1);
-    await saveData('tasks', tasks);
-    renderTasks();
-  });
+  if (showDelete) {
+    li.querySelector('.icon-btn').addEventListener('click', async () => {
+      tasks.splice(idx, 1);
+      await saveData('tasks', tasks);
+      renderTasks();
+    });
+  }
   return li;
 }
 
-function fillList(container, items, emptyText) {
+function fillList(container, items, emptyText, showDelete) {
   container.innerHTML = '';
   if (items.length === 0) {
     container.innerHTML = `<li class="empty">${emptyText}</li>`;
     return;
   }
-  items.forEach(({ task, idx }) => container.appendChild(buildTaskItem(task, idx)));
+  items.forEach(({ task, idx }) => container.appendChild(buildTaskItem(task, idx, showDelete)));
 }
 
 function renderTasks() {
   const indexed = tasks.map((task, idx) => ({ task, idx }));
   const pending = indexed.filter(t => !t.task.done);
-  fillList(taskListHome, pending, '目前沒有待辦事項。');
-  fillList(taskList, pending, '目前沒有待辦事項。');
-  fillList(taskListDone, indexed.filter(t => t.task.done), '尚無已完成的事項。');
+  fillList(taskListHome, pending, '目前沒有待辦事項。', false);
+  fillList(taskList, pending, '目前沒有待辦事項。', true);
+  fillList(taskListDone, indexed.filter(t => t.task.done), '尚無已完成的事項。', true);
 }
 
 async function addTask(text, priority) {
