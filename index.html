@@ -674,9 +674,6 @@
 </style>
 </head>
 <body>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.13.0/firebase-app-compat.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.13.0/firebase-auth-compat.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.13.0/firebase-firestore-compat.min.js"></script>
 
 <div id="auth-gate">
   <div class="auth-box">
@@ -1000,210 +997,100 @@ function updateClock() {
 updateClock();
 setInterval(updateClock, 1000 * 10);
 
-// ---------- Firebase 設定與登入 ----------
-const firebaseConfig = {
-  apiKey: "AIzaSyBCrMk47UmCQAbOEai6bqz07HrzRtEb9Xs",
-  authDomain: "ariel-workspace-53514.firebaseapp.com",
-  projectId: "ariel-workspace-53514",
-  storageBucket: "ariel-workspace-53514.firebasestorage.app",
-  messagingSenderId: "496996937825",
-  appId: "1:496996937825:web:5fb0956ce10f049e9b7a20"
-};
+// ---------- Apps Script 後端設定(登入 + 資料儲存,取代 Firebase) ----------
+const BACKEND_URL = 'https://script.google.com/macros/s/AKfycbzLhop2MA3sswOaC2FM0BRNOTwQrRqm5WMiAfZI5N-u9PGkkvPD6Wt2l1f2aV8VGSM80A/exec';
 
-let firebaseReady = false;
-let auth, db;
-try {
-  if (typeof firebase === 'undefined') {
-    throw new Error('Firebase SDK 沒有成功載入(typeof firebase === undefined)');
-  }
-  firebase.initializeApp(firebaseConfig);
-  auth = firebase.auth();
-  db = firebase.firestore();
-  firebaseReady = true;
-} catch (e) {
-  console.error('Firebase 初始化失敗', e);
-  const errEl = document.getElementById('auth-error');
-  if (errEl) {
-    errEl.textContent = 'Firebase 載入失敗,請檢查網路連線,或確認瀏覽器沒有阻擋外部資源(廣告攔截外掛、隱私模式限制等),然後重新整理頁面。';
-  }
+let authUsername = null;
+let authPassword = null;
+
+async function backendCall(payload) {
+  const res = await fetch(BACKEND_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload),
+  });
+  return res.json();
 }
 
-let currentUid = null;
-let firestoreCache = {};
-
-// ---------- 開發模式開關 ----------
-// true = 暫時跳過登入,直接進入工作台,資料存在瀏覽器本機(localStorage)
-// false = 正式模式,需要登入,資料存 Firestore 雲端
-const SKIP_LOGIN_FOR_DESIGN = true;
-const DESIGN_STORAGE_PREFIX = 'ariel-workspace:';
-
-function userDocRef() {
-  return db.collection('users').doc(currentUid);
-}
-
-// ---------- Storage helpers ----------
+// ---------- Storage helpers(透過 Apps Script 讀寫 Google Sheets) ----------
 async function loadData(key, fallback) {
-  if (SKIP_LOGIN_FOR_DESIGN) {
-    try {
-      const raw = localStorage.getItem(DESIGN_STORAGE_PREFIX + key);
-      return raw !== null ? JSON.parse(raw) : fallback;
-    } catch (e) {
-      return fallback;
+  if (!authUsername) return fallback;
+  try {
+    const result = await backendCall({ action: 'load', key, username: authUsername, password: authPassword });
+    if (result && result.value !== null && result.value !== undefined && result.value !== '') {
+      return JSON.parse(result.value);
     }
+    return fallback;
+  } catch (e) {
+    console.error('讀取資料失敗', e);
+    return fallback;
   }
-  if (!currentUid) return fallback;
-  return firestoreCache[key] !== undefined ? firestoreCache[key] : fallback;
 }
 async function saveData(key, value) {
-  if (SKIP_LOGIN_FOR_DESIGN) {
-    try {
-      localStorage.setItem(DESIGN_STORAGE_PREFIX + key, JSON.stringify(value));
-    } catch (e) {
-      console.error('Storage error', e);
-    }
-    return;
-  }
-  if (!currentUid) return;
-  const clean = JSON.parse(JSON.stringify(value));
-  firestoreCache[key] = clean;
+  if (!authUsername) return;
   try {
-    await userDocRef().set({ [key]: clean }, { merge: true });
+    await backendCall({ action: 'save', key, value: JSON.stringify(value), username: authUsername, password: authPassword });
   } catch (e) {
-    console.error('Firestore save error', e);
+    console.error('儲存資料失敗', e);
   }
 }
 
-// ---------- 舊本機資料搬家(只在第一次登入、雲端還沒有資料時執行) ----------
-function migrateLocalStorageIfNeeded() {
-  const OLD_PREFIX = 'ariel-workspace:';
-  const keysToMigrate = ['links', 'tasks', 'events', 'multiEvents', 'recurringEvents'];
-  const migrated = {};
-  let found = false;
-  keysToMigrate.forEach(key => {
-    const raw = localStorage.getItem(OLD_PREFIX + key);
-    if (raw !== null) {
-      try {
-        migrated[key] = JSON.parse(raw);
-        found = true;
-      } catch (e) { /* skip invalid */ }
-    }
-  });
-  return found ? migrated : null;
+function enterApp(username) {
+  document.getElementById('user-email').textContent = username;
+  document.getElementById('auth-gate').style.display = 'none';
+  document.getElementById('app-root').style.display = '';
+  init();
 }
 
-// 帳號名稱 → 實際 Firebase 登入 Email 的對照表
-const USERNAME_TO_EMAIL = {
-  'ariel': 'ariel184511@gmail.com',
-};
-
-document.getElementById('email-auth-form').addEventListener('submit', (e) => {
+document.getElementById('email-auth-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const errEl = document.getElementById('auth-error');
-  if (!firebaseReady) {
-    errEl.textContent = 'Firebase 尚未成功載入,請重新整理頁面再試一次(若持續發生,請檢查網路連線)。';
-    return;
-  }
   errEl.textContent = '';
-  const username = document.getElementById('auth-username').value.trim().toLowerCase();
+  const username = document.getElementById('auth-username').value.trim();
   const password = document.getElementById('auth-password').value;
-  const email = USERNAME_TO_EMAIL[username];
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.textContent = '登入中...';
 
-  const errorMessages = {
-    'auth/invalid-email': '帳號或密碼錯誤。',
-    'auth/user-not-found': '帳號或密碼錯誤。',
-    'auth/wrong-password': '帳號或密碼錯誤。',
-    'auth/invalid-credential': '帳號或密碼錯誤。',
-    'auth/too-many-requests': '嘗試次數過多,請稍後再試。',
-  };
-
-  if (!email) {
-    errEl.textContent = '帳號或密碼錯誤。';
-    return;
+  try {
+    const result = await backendCall({ action: 'login', username, password });
+    if (result && result.success) {
+      authUsername = username;
+      authPassword = password;
+      sessionStorage.setItem('workspaceAuth', JSON.stringify({ username, password }));
+      enterApp(username);
+    } else {
+      errEl.textContent = '帳號或密碼錯誤。';
+    }
+  } catch (err) {
+    errEl.textContent = '登入失敗,請檢查網路連線後再試一次。';
+    console.error('Login error', err);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = '登入';
   }
-
-  auth.signInWithEmailAndPassword(email, password).catch(err => {
-    errEl.textContent = errorMessages[err.code] || ('登入失敗:' + (err.message || '請再試一次。'));
-    console.error('Sign-in error', err);
-  });
 });
 
 document.getElementById('signout-btn').addEventListener('click', () => {
-  if (auth) auth.signOut();
+  authUsername = null;
+  authPassword = null;
+  sessionStorage.removeItem('workspaceAuth');
+  document.getElementById('auth-gate').style.display = 'flex';
+  document.getElementById('app-root').style.display = 'none';
 });
 
-if (SKIP_LOGIN_FOR_DESIGN) {
-  // 開發模式:直接跳過登入畫面,進入工作台
-  document.getElementById('auth-gate').style.display = 'none';
-  document.getElementById('app-root').style.display = '';
-  document.getElementById('user-email').textContent = '(開發模式,尚未啟用登入)';
-  init();
-} else if (firebaseReady) {
-  auth.onAuthStateChanged(async (user) => {
-  const gate = document.getElementById('auth-gate');
-  const appRoot = document.getElementById('app-root');
-  if (user) {
-    currentUid = user.uid;
-    document.getElementById('user-email').textContent = user.email || user.displayName || '';
-
-    let docSnap;
-    try {
-      docSnap = await userDocRef().get();
-    } catch (e) {
-      console.error('Firestore read error', e);
-      docSnap = null;
-    }
-    const cloudData = docSnap && docSnap.exists ? docSnap.data() : {};
-    const hasCloudData = cloudData && Object.keys(cloudData).length > 0;
-
-    if (!hasCloudData) {
-      const localData = migrateLocalStorageIfNeeded();
-      if (localData) {
-        try {
-          await userDocRef().set(localData, { merge: true });
-          firestoreCache = localData;
-        } catch (e) {
-          console.error('Migration write error', e);
-          firestoreCache = {};
-        }
-      } else {
-        firestoreCache = {};
-      }
-    } else {
-      firestoreCache = cloudData;
-    }
-
-    gate.style.display = 'none';
-    appRoot.style.display = '';
-    init();
-  } else {
-    currentUid = null;
-    firestoreCache = {};
-    gate.style.display = 'flex';
-    appRoot.style.display = 'none';
-  }
-  });
-}
-
-// ---------- Google Sheets 同步(常用連結,透過 Apps Script Web App) ----------
-const SHEETS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzLhop2MA3sswOaC2FM0BRNOTwQrRqm5WMiAfZI5N-u9PGkkvPD6Wt2l1f2aV8VGSM80A/exec';
-const SHEETS_SECRET_KEY = '0vlQ2AlH7v-68jdlvAcBvDnF-c1R6gEipD5iNjmSHY4';
-
-async function syncLinksToSheet() {
-  const rows = [['名稱', '網址', '顯示在首頁']];
-  links.forEach(l => {
-    rows.push([l.name || '', l.url || '', l.showOnHome === false ? '否' : '是']);
-  });
+// 如果這個分頁的 session 先前已登入過,自動略過登入畫面
+(function tryAutoLogin() {
   try {
-    await fetch(SHEETS_WEBAPP_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ key: SHEETS_SECRET_KEY, rows }),
-    });
-  } catch (e) {
-    console.error('同步 Google Sheets 失敗', e);
-  }
-}
+    const saved = sessionStorage.getItem('workspaceAuth');
+    if (saved) {
+      const { username, password } = JSON.parse(saved);
+      authUsername = username;
+      authPassword = password;
+      enterApp(username);
+    }
+  } catch (e) { /* ignore */ }
+})();
 
 // ---------- Links ----------
 let links = [];
@@ -1270,7 +1157,6 @@ function renderLinks() {
   const homeItems = indexed.filter(x => x.link.showOnHome !== false);
   fillLinkList(linkListHome, homeItems, '還沒有連結,新增一個吧。');
   renderLinkTable();
-  syncLinksToSheet();
 }
 
 async function addLink(name, url, showOnHome) {
