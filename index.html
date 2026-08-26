@@ -1651,9 +1651,15 @@ function renderReimbursements() {
       </td>
     `;
     tr.querySelector('.reimb-checkbox').addEventListener('change', async (e) => {
-      reimbursements[idx].received = e.target.checked;
+      const r = reimbursements[idx];
+      r.received = e.target.checked;
       if (e.target.checked) {
-        reimbursements[idx].outstanding = 0;
+        // 記住原本的待收款金額,方便取消勾選時還原
+        r.prevOutstanding = r.outstanding;
+        r.outstanding = 0;
+      } else {
+        r.outstanding = r.prevOutstanding !== undefined ? r.prevOutstanding : (Number(r.total) || 0);
+        delete r.prevOutstanding;
       }
       await saveData('reimbursements', reimbursements);
       renderReimbursements();
