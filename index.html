@@ -565,6 +565,25 @@
     cursor: pointer;
   }
 
+  .sheets-sync-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .sheets-status {
+    font-size: 12px;
+    color: var(--text-secondary);
+  }
+  .sheets-status.connected { color: #1a7a3e; }
+  #sheets-connect-btn { flex-shrink: 0; }
+
   .reimb-summary-row {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -659,6 +678,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.13.0/firebase-app-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.13.0/firebase-auth-compat.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/10.13.0/firebase-firestore-compat.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 
 <div id="auth-gate">
   <div class="auth-box">
@@ -750,6 +770,10 @@
     <section class="page" id="page-links">
       <div class="card">
         <h2>🌐 常用連結</h2>
+        <div class="sheets-sync-bar">
+          <span id="sheets-status" class="sheets-status">未連接 Google Sheets,新增的連結不會自動同步</span>
+          <button type="button" id="sheets-connect-btn" class="reimb-cancel-btn">連接 Google Sheets</button>
+        </div>
         <form class="add-row" id="link-form">
           <input type="checkbox" id="link-showhome" class="link-checkbox" title="打勾:同時顯示在首頁">
           <input type="text" id="link-name" placeholder="名稱" style="flex: 0 0 30%;">
@@ -1151,6 +1175,90 @@ if (SKIP_LOGIN_FOR_DESIGN) {
   });
 }
 
+// ---------- Google Sheets 同步(常用連結) ----------
+const SHEETS_CLIENT_ID = '496996937825-ptgc4oqlaopfoftjakn9ev4454a68p4a.apps.googleusercontent.com';
+const SHEETS_SHEET_ID = '1Za9hHDMe8sAcxzPuy-BKAwUsu2ORhkIyykd-iLRl4EE';
+const SHEETS_RANGE = 'Sheet1!A:C';
+
+let sheetsTokenClient = null;
+let sheetsAccessToken = null;
+
+const sheetsStatusEl = document.getElementById('sheets-status');
+const sheetsConnectBtn = document.getElementById('sheets-connect-btn');
+
+function updateSheetsStatus(connected) {
+  if (connected) {
+    sheetsStatusEl.textContent = '已連接 Google Sheets,連結會自動同步';
+    sheetsStatusEl.classList.add('connected');
+    sheetsConnectBtn.textContent = '重新連接';
+  } else {
+    sheetsStatusEl.textContent = '未連接 Google Sheets,新增的連結不會自動同步';
+    sheetsStatusEl.classList.remove('connected');
+    sheetsConnectBtn.textContent = '連接 Google Sheets';
+  }
+}
+
+function ensureSheetsTokenClient() {
+  if (sheetsTokenClient || !window.google || !google.accounts || !google.accounts.oauth2) return sheetsTokenClient;
+  sheetsTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: SHEETS_CLIENT_ID,
+    scope: 'https://www.googleapis.com/auth/spreadsheets',
+    callback: (resp) => {
+      if (resp && resp.access_token) {
+        sheetsAccessToken = resp.access_token;
+        updateSheetsStatus(true);
+        syncLinksToSheet();
+      }
+    },
+    error_callback: () => {
+      updateSheetsStatus(false);
+    },
+  });
+  return sheetsTokenClient;
+}
+
+function connectSheets(interactive) {
+  const client = ensureSheetsTokenClient();
+  if (!client) return;
+  client.requestAccessToken({ prompt: interactive ? 'consent' : '' });
+}
+
+sheetsConnectBtn.addEventListener('click', () => connectSheets(true));
+
+window.addEventListener('load', () => {
+  // 進站時嘗試靜默重新連接(如果先前已授權過,不會跳出視窗)
+  setTimeout(() => connectSheets(false), 800);
+});
+
+async function syncLinksToSheet() {
+  if (!sheetsAccessToken) return;
+  const rows = [['名稱', '網址', '顯示在首頁']];
+  links.forEach(l => {
+    rows.push([l.name || '', l.url || '', l.showOnHome === false ? '否' : '是']);
+  });
+  try {
+    const res = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${SHEETS_SHEET_ID}/values/${encodeURIComponent(SHEETS_RANGE)}?valueInputOption=RAW`,
+      {
+        method: 'PUT',
+        headers: {
+          'Authorization': 'Bearer ' + sheetsAccessToken,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ values: rows }),
+      }
+    );
+    if (res.status === 401) {
+      // token 過期,嘗試重新靜默取得
+      sheetsAccessToken = null;
+      updateSheetsStatus(false);
+      connectSheets(false);
+    }
+  } catch (e) {
+    console.error('同步 Google Sheets 失敗', e);
+  }
+}
+
 // ---------- Links ----------
 let links = [];
 const linkListHome = document.getElementById('link-list-home');
@@ -1192,6 +1300,7 @@ function renderLinks() {
   const homeItems = indexed.filter(x => x.link.showOnHome !== false);
   fillLinkList(linkListHome, homeItems, '還沒有連結,新增一個吧。', false);
   fillLinkList(linkListPage, indexed, '還沒有連結,新增一個吧。', true);
+  syncLinksToSheet();
 }
 
 async function addLink(name, url, showOnHome) {
