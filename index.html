@@ -1652,6 +1652,9 @@ function renderReimbursements() {
     `;
     tr.querySelector('.reimb-checkbox').addEventListener('change', async (e) => {
       reimbursements[idx].received = e.target.checked;
+      if (e.target.checked) {
+        reimbursements[idx].outstanding = 0;
+      }
       await saveData('reimbursements', reimbursements);
       renderReimbursements();
     });
