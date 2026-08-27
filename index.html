@@ -1583,7 +1583,7 @@ attachCalNav('cal-prev-home', 'cal-next-home');
 
 // ---------- 公司請款項目 ----------
 let reimbursements = [];
-let reimbEditingIdx = null;
+let reimbEditingId = null;
 let reimbFilter = 'all';
 
 const reimbForm = document.getElementById('reimb-form');
@@ -1591,16 +1591,19 @@ const reimbTableBody = document.getElementById('reimb-table-body');
 const reimbSubmitBtn = document.getElementById('reimb-submit-btn');
 const reimbCancelBtn = document.getElementById('reimb-cancel-btn');
 
+function generateReimbId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
 function formatDateSlash(iso) {
   if (!iso) return '—';
   return iso.replace(/-/g, '/');
 }
 
 function renderReimbursements() {
-  const indexed = reimbursements.map((r, idx) => ({ r, idx }));
-  const countAll = indexed.length;
-  const countPending = indexed.filter(x => !x.r.received).length;
-  const countReceived = indexed.filter(x => x.r.received).length;
+  const countAll = reimbursements.length;
+  const countPending = reimbursements.filter(r => !r.received).length;
+  const countReceived = reimbursements.filter(r => r.received).length;
   document.getElementById('tab-count-all').textContent = countAll;
   document.getElementById('tab-count-pending').textContent = countPending;
   document.getElementById('tab-count-received').textContent = countReceived;
@@ -1617,9 +1620,9 @@ function renderReimbursements() {
   document.getElementById('reimb-received-sum').textContent = '$' + receivedSum.toLocaleString();
   document.getElementById('reimb-outstanding-sum').textContent = '$' + outstandingSum.toLocaleString();
 
-  const visible = indexed.filter(x => {
-    if (reimbFilter === 'pending') return !x.r.received;
-    if (reimbFilter === 'received') return x.r.received;
+  const visible = reimbursements.filter(r => {
+    if (reimbFilter === 'pending') return !r.received;
+    if (reimbFilter === 'received') return r.received;
     return true;
   });
 
@@ -1629,7 +1632,7 @@ function renderReimbursements() {
     return;
   }
 
-  visible.forEach(({ r, idx }) => {
+  visible.forEach((r) => {
     const total = Number(r.total) || 0;
     const outstanding = Number(r.outstanding) || 0;
     const receivedAmount = total - outstanding;
@@ -1651,24 +1654,27 @@ function renderReimbursements() {
       </td>
     `;
     tr.querySelector('.reimb-checkbox').addEventListener('change', async (e) => {
-      const r = reimbursements[idx];
-      r.received = e.target.checked;
+      const target = reimbursements.find(x => x.id === r.id);
+      if (!target) return;
+      target.received = e.target.checked;
       if (e.target.checked) {
         // 記住原本的待收款金額,方便取消勾選時還原
-        r.prevOutstanding = r.outstanding;
-        r.outstanding = 0;
+        target.prevOutstanding = target.outstanding;
+        target.outstanding = 0;
       } else {
-        r.outstanding = r.prevOutstanding !== undefined ? r.prevOutstanding : (Number(r.total) || 0);
-        delete r.prevOutstanding;
+        target.outstanding = target.prevOutstanding !== undefined ? target.prevOutstanding : (Number(target.total) || 0);
+        delete target.prevOutstanding;
       }
       await saveData('reimbursements', reimbursements);
       renderReimbursements();
     });
-    tr.querySelector('.edit-btn').addEventListener('click', () => startEditReimb(idx));
+    tr.querySelector('.edit-btn').addEventListener('click', () => startEditReimb(r.id));
     tr.querySelector('.del-btn').addEventListener('click', async () => {
-      reimbursements.splice(idx, 1);
+      const targetIdx = reimbursements.findIndex(x => x.id === r.id);
+      if (targetIdx === -1) return;
+      reimbursements.splice(targetIdx, 1);
       await saveData('reimbursements', reimbursements);
-      if (reimbEditingIdx === idx) resetReimbForm();
+      if (reimbEditingId === r.id) resetReimbForm();
       renderReimbursements();
     });
     reimbTableBody.appendChild(tr);
@@ -1684,9 +1690,10 @@ document.querySelectorAll('.reimb-tab').forEach(btn => {
   });
 });
 
-function startEditReimb(idx) {
-  const r = reimbursements[idx];
-  reimbEditingIdx = idx;
+function startEditReimb(id) {
+  const r = reimbursements.find(x => x.id === id);
+  if (!r) return;
+  reimbEditingId = id;
   document.getElementById('reimb-payee').value = r.payee || '';
   document.getElementById('reimb-date').value = r.date || '';
   document.getElementById('reimb-total').value = r.total || '';
@@ -1698,7 +1705,7 @@ function startEditReimb(idx) {
 }
 
 function resetReimbForm() {
-  reimbEditingIdx = null;
+  reimbEditingId = null;
   reimbForm.reset();
   reimbSubmitBtn.textContent = '新增';
   reimbCancelBtn.style.display = 'none';
@@ -1717,20 +1724,22 @@ reimbForm.addEventListener('submit', async (e) => {
 
   if (!payee) return;
 
-  const existingReceived = reimbEditingIdx !== null ? reimbursements[reimbEditingIdx].received : false;
+  const existing = reimbEditingId !== null ? reimbursements.find(x => x.id === reimbEditingId) : null;
 
   const entry = {
+    id: existing ? existing.id : generateReimbId(),
     payee,
     date,
     total: total === '' ? 0 : Number(total),
     outstanding: outstanding === '' ? 0 : Number(outstanding),
     expected,
     note,
-    received: existingReceived,
+    received: existing ? existing.received : false,
   };
 
-  if (reimbEditingIdx !== null) {
-    reimbursements[reimbEditingIdx] = entry;
+  if (existing) {
+    const targetIdx = reimbursements.findIndex(x => x.id === existing.id);
+    reimbursements[targetIdx] = entry;
   } else {
     reimbursements.push(entry);
   }
@@ -1761,6 +1770,7 @@ async function init() {
   recurringEvents = recurringEvents.map(rec => rec.category ? rec : { ...rec, category: 'personal' });
   reimbursements = await loadData('reimbursements', []);
   reimbursements = reimbursements.map(r => (!r.date && r.month) ? { ...r, date: r.month + '-01' } : r);
+  reimbursements = reimbursements.map(r => r.id ? r : { ...r, id: generateReimbId() });
   renderLinks();
   renderTasks();
   renderReimbursements();
