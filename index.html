@@ -1734,7 +1734,7 @@ reimbForm.addEventListener('submit', async (e) => {
     outstanding: outstanding === '' ? 0 : Number(outstanding),
     expected,
     note,
-    received: existing ? existing.received : false,
+    received: false,
   };
 
   if (existing) {
